@@ -176,30 +176,27 @@ if __name__ == "__main__":
     logger.info("🌦 Weather Fetcher started")
     
     # Initialize counter for city rotation
-    fetch_counter = 0
     current_city_index = 0
 
     while True:
         try:
-            # Every 100 fetches, switch to next city
-            if fetch_counter % 100 == 0:
-                current_city_index = (fetch_counter // 100) % len(cities)
-                city_data = cities[current_city_index]
-                logger.info(f"🔄 Switching to city: {city_data['city']}, {city_data['country']} " 
-                          f"(lat: {city_data['latitude']}, lon: {city_data['longitude']})")
+            if current_city_index == len(cities):
+                current_city_index = 0
+
+            city_data = cities[current_city_index]
             
             # Fetch weather for current city
             weather = fetch_weather(city_data)
             producer.send(TOPIC, weather)
             producer.flush()
             
-            fetch_counter += 1
+            current_city_index += 1
             
             logger.info(f"📤 Sent: City={weather['city']}, "
                        f"Temp={weather['temperature']}°C, "
                        f"Humidity={weather['humidity']}%, "
                        f"Wind={weather['wind_speed']}km/h "
-                       f"(Fetch #{fetch_counter})")
+                       f"(Fetch #{current_city_index})")
 
         except Exception as e:
             logger.info(f"❌ Error: {e}")
@@ -207,4 +204,4 @@ if __name__ == "__main__":
             current_city_index = (current_city_index + 1) % len(cities)
             city_data = cities[current_city_index]
 
-        time.sleep(30)
+        time.sleep(100)
