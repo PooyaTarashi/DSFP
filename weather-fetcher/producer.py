@@ -123,4 +123,4 @@ if __name__ == "__main__":
         except Exception as e:
             logger.info(f"❌ Error: {e}")
 
-        time.sleep(3600)
+        time.sleep(30)
