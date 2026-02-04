@@ -1,3 +1,8 @@
+networks:
+  hadoop-network:
+    name: hadoop-network
+    driver: bridge
+
 services:
   # =========================
   # Zookeeper
@@ -9,6 +14,8 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
     ports:
       - "2181:2181"
+    networks:
+      - hadoop-network
 
   # =========================
   # Kafka
@@ -33,6 +40,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
     volumes:
       - kafka-data:/var/lib/kafka/data
+    networks:
+      - hadoop-network
 
   # =========================
   # Kafka Connect
@@ -62,6 +71,8 @@ services:
       CONNECT_PLUGIN_PATH: "/usr/share/java,/etc/kafka-connect/jars"
     volumes:
       - ./local_folder_container:/tmp/input
+    networks:
+      - hadoop-network
 
   # =========================
   # Spark Master
@@ -81,6 +92,8 @@ services:
       - SPARK_LOCAL_IP=spark-master
     volumes:
       - ./spark-jobs:/opt/spark-apps
+    networks:
+      - hadoop-network
 
   # =========================
   # Spark Workers (3 Nodes)
@@ -100,6 +113,8 @@ services:
       - SPARK_LOCAL_IP=spark-worker-1
       - SPARK_WORKER_CORES=2
       - SPARK_WORKER_MEMORY=2g
+    networks:
+      - hadoop-network
 
   spark-worker-2:
     image: registry.docker.ir/apache/spark:3.5.8-scala2.12-java11-python3-r-ubuntu
@@ -116,6 +131,8 @@ services:
       - SPARK_LOCAL_IP=spark-worker-2
       - SPARK_WORKER_CORES=2
       - SPARK_WORKER_MEMORY=2g
+    networks:
+      - hadoop-network
 
   spark-worker-3:
     image: registry.docker.ir/apache/spark:3.5.8-scala2.12-java11-python3-r-ubuntu
@@ -132,6 +149,8 @@ services:
       - SPARK_LOCAL_IP=spark-worker-3
       - SPARK_WORKER_CORES=2
       - SPARK_WORKER_MEMORY=2g
+    networks:
+      - hadoop-network
 
   # =========================
   # HDFS NameNode
@@ -141,10 +160,14 @@ services:
     container_name: hdfs-namenode
     environment:
       - CLUSTER_NAME=weather-cluster
+      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9000
     ports:
       - "9870:9870"
+      - "9000:9000"
     volumes:
       - namenode:/hadoop/dfs/name
+    networks:
+      - hadoop-network
 
   # =========================
   # HDFS DataNodes (3 Storage Nodes)
@@ -156,8 +179,11 @@ services:
       - hdfs-namenode
     environment:
       - SERVICE_PRECONDITION=hdfs-namenode:9870
+      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9000
     volumes:
       - datanode1:/hadoop/dfs/data
+    networks:
+      - hadoop-network
 
   hdfs-datanode-2:
     image: bde2020/hadoop-datanode
@@ -166,8 +192,11 @@ services:
       - hdfs-namenode
     environment:
       - SERVICE_PRECONDITION=hdfs-namenode:9870
+      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9000
     volumes:
       - datanode2:/hadoop/dfs/data
+    networks:
+      - hadoop-network
 
   hdfs-datanode-3:
     image: bde2020/hadoop-datanode
@@ -176,8 +205,34 @@ services:
       - hdfs-namenode
     environment:
       - SERVICE_PRECONDITION=hdfs-namenode:9870
+      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9000
     volumes:
       - datanode3:/hadoop/dfs/data
+    networks:
+      - hadoop-network
+
+  # =========================
+  # HDFS Initiator
+  # =========================
+  hdfs-init:
+    image: registry.docker.ir/bde2020/hadoop-base:2.0.0-hadoop3.2.1-java8
+    container_name: hdfs-init
+    depends_on:
+      - hdfs-namenode
+      - hdfs-datanode-1
+      - hdfs-datanode-2
+      - hdfs-datanode-3
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9000
+    command: >
+      bash -c "
+      hdfs dfs -mkdir -p /weather/raw /weather/aggregated /weather/checkpoints/raw /weather/checkpoints/aggregated
+      hdfs dfs -chmod -R 777 /weather
+      echo 'Directory structure created:'
+      hdfs dfs -ls -R /
+      "
+    networks:
+      - hadoop-network
 
   # =========================
   # Weather Fetcher (Producer)
@@ -188,8 +243,10 @@ services:
     depends_on:
       - kafka
     environment:
-      - KAFKA_BROKER=kafka:29092  # Changed to use internal Docker network
+      - KAFKA_BROKER=kafka:29092
       - TOPIC=weather_raw
+    networks:
+      - hadoop-network
 
   # =========================
   # Dashboard (Placeholder)
@@ -200,6 +257,8 @@ services:
     command: ["sleep", "infinity"]
     ports:
       - "8000:8000"
+    networks:
+      - hadoop-network
 
 volumes:
   namenode:

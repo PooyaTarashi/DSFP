@@ -204,4 +204,4 @@ if __name__ == "__main__":
             current_city_index = (current_city_index + 1) % len(cities)
             city_data = cities[current_city_index]
 
-        time.sleep(100)
+        time.sleep(5)
