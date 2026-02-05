@@ -251,6 +251,7 @@ services:
       - ./notebooks:/home/jovyan/work  # Mount local notebooks directory
       - ./spark-jobs:/home/jovyan/spark-jobs  # Mount spark jobs
       - ./local_folder_container:/home/jovyan/data  # Mount your data directory
+      - ./models:/home/jovyan/models
     command: >
       start-notebook.sh
       --NotebookApp.token='' 
