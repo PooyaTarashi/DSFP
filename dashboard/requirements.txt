@@ -1,0 +1,7 @@
+pandas
+numpy
+hdfs
+tensorflow
+scikit-learn
+streamlit
+plotly

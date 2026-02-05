@@ -71,11 +71,11 @@ raw_query = weather_df.writeStream \
     .outputMode("append") \
     .option(
         "path",
-        "hdfs://hdfs-namenode:9000/weather/raw"
+        "hdfs://hdfs-namenode:9005/weather/raw"
     ) \
     .option(
         "checkpointLocation",
-        "hdfs://hdfs-namenode:9000/weather/checkpoints/raw"
+        "hdfs://hdfs-namenode:9005/weather/checkpoints/raw"
     ) \
     .partitionBy("location") \
     .start()
@@ -104,11 +104,11 @@ agg_query = agg_df.writeStream \
     .outputMode("append") \
     .option(
         "path",
-        "hdfs://hdfs-namenode:9000/weather/aggregated"
+        "hdfs://hdfs-namenode:9005/weather/aggregated"
     ) \
     .option(
         "checkpointLocation",
-        "hdfs://hdfs-namenode:9000/weather/checkpoints/aggregated"
+        "hdfs://hdfs-namenode:9005/weather/checkpoints/aggregated"
     ) \
     .partitionBy("location") \
     .start()

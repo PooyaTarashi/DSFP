@@ -160,10 +160,10 @@ services:
     container_name: hdfs-namenode
     environment:
       - CLUSTER_NAME=weather-cluster
-      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9000
+      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9005
     ports:
       - "9870:9870"
-      - "9000:9000"
+      - "9005:9005"
     volumes:
       - namenode:/hadoop/dfs/name
     networks:
@@ -179,7 +179,7 @@ services:
       - hdfs-namenode
     environment:
       - SERVICE_PRECONDITION=hdfs-namenode:9870
-      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9000
+      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9005
     volumes:
       - datanode1:/hadoop/dfs/data
     networks:
@@ -192,7 +192,7 @@ services:
       - hdfs-namenode
     environment:
       - SERVICE_PRECONDITION=hdfs-namenode:9870
-      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9000
+      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9005
     volumes:
       - datanode2:/hadoop/dfs/data
     networks:
@@ -205,34 +205,12 @@ services:
       - hdfs-namenode
     environment:
       - SERVICE_PRECONDITION=hdfs-namenode:9870
-      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9000
+      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9005
     volumes:
       - datanode3:/hadoop/dfs/data
     networks:
       - hadoop-network
 
-  # =========================
-  # HDFS Initiator
-  # =========================
-  hdfs-init:
-    image: registry.docker.ir/bde2020/hadoop-base:2.0.0-hadoop3.2.1-java8
-    container_name: hdfs-init
-    depends_on:
-      - hdfs-namenode
-      - hdfs-datanode-1
-      - hdfs-datanode-2
-      - hdfs-datanode-3
-    environment:
-      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:9000
-    command: >
-      bash -c "
-      hdfs dfs -mkdir -p /weather/raw /weather/aggregated /weather/checkpoints/raw /weather/checkpoints/aggregated
-      hdfs dfs -chmod -R 777 /weather
-      echo 'Directory structure created:'
-      hdfs dfs -ls -R /
-      "
-    networks:
-      - hadoop-network
 
   # =========================
   # Weather Fetcher (Producer)
@@ -249,16 +227,64 @@ services:
       - hadoop-network
 
   # =========================
-  # Dashboard (Placeholder)
+  # Jupyter Notebook
   # =========================
-  dashboard:
-    image: docker.arvancloud.ir/python:3.11
-    container_name: dashboard
-    command: ["sleep", "infinity"]
+  jupyter-notebook:
+    image: docker.arvancloud.ir/jupyter/all-spark-notebook:latest
+    container_name: jupyter-notebook
+    depends_on:
+      - spark-master
+      - hdfs-namenode
+      - kafka
     ports:
-      - "8000:8000"
+      - "8888:8888"
+      - "4040:4040"  # Spark UI port
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - SPARK_MASTER=spark://spark-master:7077
+      - HADOOP_CONF_DIR=/usr/local/hadoop/etc/hadoop
+      - HADOOP_HOME=/usr/local/hadoop
+      - HDFS_NAMENODE=hdfs://hdfs-namenode:9005
+      - KAFKA_BROKER=kafka:29092
+      - PYSPARK_PYTHON=python3
+    volumes:
+      - ./notebooks:/home/jovyan/work  # Mount local notebooks directory
+      - ./spark-jobs:/home/jovyan/spark-jobs  # Mount spark jobs
+      - ./local_folder_container:/home/jovyan/data  # Mount your data directory
+    command: >
+      start-notebook.sh
+      --NotebookApp.token='' 
+      --NotebookApp.password=''
+      --ip=0.0.0.0
+      --port=8888
+      --allow-root
     networks:
       - hadoop-network
+
+  # =========================
+  # Dashboard (CLI + Web UI)
+  # =========================
+  # dashboard:
+  #   build: ./dashboard
+  #   container_name: dashboard
+  #   depends_on:
+  #     - hdfs-namenode
+  #     - kafka
+  #   environment:
+  #     - HDFS_URL=http://hdfs-namenode:9870
+  #     - MODEL_PATH=/app/models/weather_lstm_model.h5
+  #   ports:
+  #     - "8000:8000"   # CLI access
+  #     - "8501:8501"   # Streamlit web UI
+  #   volumes:
+  #     - ./models:/app/models  # Mount your trained model here
+  #   networks:
+  #     - hadoop-network
+  #   # Choose one of these commands:
+  #   # For CLI mode:
+  #   # command: ["python", "dashboard_app.py"]
+  #   # For Web UI mode (uncomment this and comment above):
+  #   command: ["streamlit", "run", "dashboard_web.py", "--server.port=8501", "--server.address=0.0.0.0"]
 
 volumes:
   namenode:
